@@ -14,5 +14,11 @@
   "license": "BSD-2-Clause",
   "bugs": {
     "url": "https://github.com/michaelrogers/liri-node-app/issues"
+  },
+  "dependencies": {
+    "request": "~2.79.0",
+    "twitter": "~1.7.0",
+    "spotify": "~0.3.0",
+    "fs": "0.0.1-security"
   }
 }
