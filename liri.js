@@ -1,27 +1,48 @@
 "use strict";
 var request = require('request');
 var fs = require('fs');
+var spotify = require('spotify');
 
 var requestHelper = function (URL, callback) {
 	request(URL, function (error, response, body) {
 		if (!error && response.statusCode == 200) {
 			callback(JSON.parse(body));
-		} else console.log(error);
+		} else throw error;
 	});
-}
+};
 
 var myTweets = function(input) {
+	var tweetCount = input ? input : 20;
 	console.log('Tweets my lord');
+};
 
+var concatenateStrings = function(array, data) {
+	var outputText = '';
+	for (var i = 0; i < array.length; i++) {
+		outputText += (array[i] + ': ' + data[array[i]] + '\n');
+	}
+	return outputText;
 };
 
 var spotifyThisSong = function(input) {
-	console.log('Spotify');
-
+	var searchTerm = input ? input : 'The Sign';
+	var outputKeys = [
+		''
+	];
+	spotify.search({
+		type: 'track',
+		query: searchTerm,
+		// limit: 1
+	}, function (error, data) {
+		if (error) throw error;
+		else {
+			console.log(data)
+			// console.log(concatenateStrings(outputKeys, data));
+		}
+	});
 };
 
 var movieThis = function(input) {
-	var outputText = '';
 	var outputKeys = [
 		'Title',
 		'Year',
@@ -34,10 +55,9 @@ var movieThis = function(input) {
 		'tomatoURL'
 	];
 	var searchTerm = input ? input : 'Mr. Nobody';
-	console.log(searchTerm)
+	console.log(searchTerm);
 
-	requestHelper(
-	(
+	requestHelper((
 		'http://www.omdbapi.com/?' + 
 		'r=json' +
 		'&plot=short' +
@@ -45,10 +65,7 @@ var movieThis = function(input) {
 		'&t=' + searchTerm
 	),
 	function(data) {
-		for (var i = 0; i < outputKeys.length; i++) {
-			outputText += outputKeys[i] + ': ' + data[outputKeys[i]] + '\n';
-		}
-		console.log(outputText);
+		console.log(concatenateStrings(outputKeys, data));
 	});
 };
 
@@ -76,7 +93,7 @@ var commandHandler = function (command, input) {
 			return doWhatItSays();
 		default:
 			return console.log(
-				'The available commands are: \n * my-tweets \n * spotify-this-song [song name] \n * movie-this [movie name] \n * do-what-it-says'
+				'The available commands are: \n * my-tweets [tweet count]\n * spotify-this-song [song name] \n * movie-this [movie name] \n * do-what-it-says'
 			);
 	}
 };
