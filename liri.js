@@ -2,6 +2,15 @@
 var request = require('request');
 var fs = require('fs');
 var spotify = require('spotify');
+var Twitter = require('twitter');
+var keys = require('./keys.js');
+
+var client = new Twitter({
+  consumer_key: process.env.CONSUMER_KEY,
+  consumer_secret: process.env.CONSUMER_SECRET,
+  access_token_key: process.env.ACCESS_TOKEN_KEY,
+  access_token_secret: process.env.ACCESS_TOKEN_SECRET
+});
 
 var requestHelper = function (URL, callback) {
 	request(URL, function (error, response, body) {
@@ -11,51 +20,83 @@ var requestHelper = function (URL, callback) {
 	});
 };
 
-var myTweets = function(input) {
-	var tweetCount = input ? input : 20;
-	console.log('Tweets my lord');
-};
+var writeCommandToFile = function (fileName, entry) {
+	fs.appendFile(fileName, entry, function (error) {
+		if (error) throw error;
+	});
+}
 
 var concatenateStrings = function(array, data) {
 	var outputText = '';
 	for (var i = 0; i < array.length; i++) {
-		outputText += (array[i] + ': ' + data[array[i]] + '\n');
+		var textPath = data[array[i].path]
+		//Have to hand code nested paths because I didn't want to use eval() :/
+		if (array[i].label == 'Artists') textPath = data.artists[0].name;
+		else if (array[i].label == 'Album') textPath = data.album.name;
+		outputText += (array[i].label + ': ' + textPath + '\n'); 
 	}
 	return outputText;
 };
 
+var myTweets = function(input) {
+	var tweetCount = input ? input : 20;
+	client.get(
+		'statuses/user_timeline',
+		{
+			count: tweetCount,
+			screen_name: 'M_H_Rogers',
+			trim_user: true,
+			exclude_replies: false,
+			include_rts: true,
+		},
+		function (error, data, response) {
+			if (error) console.log(error);
+			else {
+				for (var i = 0; i < data.length; i++) {
+					console.log(
+						data[i].text + '\n' + 'Date tweeted: ' +
+						data[i].created_at + '\n'
+					);
+				}
+			}
+		}
+	);
+};
+
 var spotifyThisSong = function(input) {
-	var searchTerm = input ? input : 'The Sign';
+	var searchTerm = input ? input : 'The Sign Ace of Base';
 	var outputKeys = [
-		''
+		{label: 'Song name', path: 'name'},
+		{label: 'Artists', path: 'artists[0].name'},
+		{label: 'Album', path: 'album.name'},
+		{label: 'Preview Link', path: 'preview_url'},
 	];
 	spotify.search({
 		type: 'track',
 		query: searchTerm,
-		// limit: 1
 	}, function (error, data) {
 		if (error) throw error;
 		else {
-			console.log(data)
-			// console.log(concatenateStrings(outputKeys, data));
+			console.log(
+				concatenateStrings(outputKeys, data.tracks.items[0])
+			);
 		}
 	});
 };
 
 var movieThis = function(input) {
 	var outputKeys = [
-		'Title',
-		'Year',
-		'imdbRating',
-		'Country',
-		'Language',
-		'Plot',
-		'Actors',
-		'tomatoRating',
-		'tomatoURL'
+		{label: 'Title', path: 'Title'},
+		{label: 'Year', path: 'Year'},
+		{label: 'imdbRating', path: 'imdbRating'},
+		{label: 'Country', path: 'Country'},
+		{label: 'Language', path: 'Language'},
+		{label: 'Plot', path: 'Plot'},
+		{label: 'Actors', path: 'Actors'},
+		{label: 'tomatoRating', path: 'tomatoRating'},
+		{label: 'tomatoURL', path: 'tomatoURL'},
 	];
 	var searchTerm = input ? input : 'Mr. Nobody';
-	console.log(searchTerm);
 
 	requestHelper((
 		'http://www.omdbapi.com/?' + 
@@ -72,16 +113,14 @@ var movieThis = function(input) {
 var doWhatItSays = function(input) {
 	fs.readFile('random.txt', 'utf8', function (error, data) {
 		if (error) throw error;
-		else {
+		else { //Pass the split array as parameters to commandHandler
 			commandHandler.apply(this, data.trim().split(','));
 		} 
 	});
 };
 
-console.log('------------------------------------------');
-
 var commandHandler = function (command, input) {
-	console.log(command, input);
+	writeCommandToFile('log.txt', command + ',"' + input + '"'+'\n');
 	switch (command) {
 		case 'my-tweets':
 			return myTweets(input);
@@ -93,9 +132,14 @@ var commandHandler = function (command, input) {
 			return doWhatItSays();
 		default:
 			return console.log(
-				'The available commands are: \n * my-tweets [tweet count]\n * spotify-this-song [song name] \n * movie-this [movie name] \n * do-what-it-says'
+				'The available commands are: \n' + 
+				'* my-tweets [tweet count]\n' + 
+				'* spotify-this-song [song name] \n' + 
+				'* movie-this [movie name] \n' +
+				'* do-what-it-says'
 			);
 	}
 };
 
+console.log('------------------------------------------');
 commandHandler(process.argv[2], process.argv.splice(3).join(' '));
